@@ -395,6 +395,30 @@ static inline puto_cardinal *puto_cardinal_suma(puto_cardinal *p_res,
 #define puto_cardinal_suma_local(p_op1,p_op2) puto_cardinal_suma(&(puto_cardinal){0},p_op1,p_op2)
 #define puto_cardinal_suma_a_op1(p_op1,p_op2) puto_cardinal_suma(p_op1,&(puto_cardinal){.coord_x=p_op1->coord_x,.coord_y=p_op1->coord_y},p_op2)
 
+static inline char *puto_cardinal_a_cadena(puto_cardinal *puto, char *buffer) {
+	*buffer = '\0';
+
+	sprintf(buffer, "%d,%d(%llx,%hx)", puto->coord_x, puto->coord_y,
+			puto->coord_xy, (short )puto_cardinal_compacta_a_corto(puto));
+
+	return buffer;
+}
+
+static inline char *puto_cardinal_arreglo_a_cacadena(puto_cardinal *putos,
+		natural putos_tam, char *buffer) {
+	*buffer = '\0';
+	char *buffer_tmp = buffer;
+
+	for (int i = 0; i < putos_tam; i++) {
+		natural scritos = sprintf(buffer_tmp, "%s-",
+				puto_cardinal_a_cadena(putos+i, CACA_COMUN_BUF_STATICO));
+		buffer_tmp += scritos;
+
+	}
+
+	return buffer;
+}
+
 #endif
 
 #define OPERA_CACA_MAX_FILAS ((int)1E3)
@@ -411,21 +435,23 @@ typedef enum opera_caca_idx_movs {
 	der_opera_caca_idx_movs
 } opera_caca_idx_movs;
 
-puto_cardinal opera_caca_movs[] = { { 0, -1 }, { 0, 1 }, { -1, 0 }, { 1, 0 } };
-
 #define opera_caca_var_mov_gen(lado) lado ## _opera_caca_idx_movs
 #define opera_caca_var_mov(lado) opera_caca_var_mov_gen(lado)
 #define opera_caca_mov(lado) (opera_caca_movs[opera_caca_var_mov(lado) ])
 #define opera_caca_var_mov_arriba opera_caca_var_mov(arriba)
 #define opera_caca_var_mov_der opera_caca_var_mov(der)
 #define opera_caca_var_mov_izq opera_caca_var_mov(izq)
-#define opera_caca_mov_arriba opera_caca_mov(arriba)
-#define opera_caca_mov_abajo opera_caca_mov(abajo)
-#define opera_caca_mov_izq opera_caca_mov(izq)
-#define opera_caca_mov_der opera_caca_mov(der)
+#define opera_caca_mov_arriba { 0, -1 }
+#define opera_caca_mov_abajo { 0, 1 }
+#define opera_caca_mov_izq { -1, 0 }
+#define opera_caca_mov_der { 1, 0 }
 
-puto_cardinal opera_caca_seq_movs = { opera_caca_mov_abajo, opera_caca_mov_der,
-opera_caca_mov_arriba, opera_caca_mov_der };
+puto_cardinal opera_caca_movs[] = { opera_caca_mov_arriba, opera_caca_mov_abajo,
+opera_caca_mov_izq, opera_caca_mov_der };
+
+opera_caca_idx_movs opera_caca_seq_movs[] = { abajo_opera_caca_idx_movs,
+		der_opera_caca_idx_movs, arriba_opera_caca_idx_movs,
+		der_opera_caca_idx_movs };
 
 typedef struct opera_caca_ctx {
 	char matrix[OPERA_CACA_MAX_FILAS][OPERA_CACA_MAX_COLUMNAS];
@@ -447,7 +473,7 @@ static inline void opera_caca_cambia_sentido_seq_movs(opera_caca_ctx *ctx) {
 		ctx->pos_tope = 1;
 	} else {
 		sentido = opera_caca_var_mov_der;
-		ctx->pos_tope = ctx->columnas_tam - 1;
+		ctx->pos_tope = ctx->columnas_tam;
 	}
 	ctx->sentido = sentido;
 	opera_caca_seq_movs[1] = sentido;
@@ -456,18 +482,24 @@ static inline void opera_caca_cambia_sentido_seq_movs(opera_caca_ctx *ctx) {
 
 #define OPERA_CACA_CARACTER_BLOQUE_LIBRE '.'
 #define OPERA_CACA_CARACTER_BLOQUE_BLOKEADO '#'
-#define opera_caca_obten_valor_matrix_rodeada_en_puto(ctx,puto) (ctx->matrix_rodeada[puto->coord_x][puto->coord_y])
-#define opera_caca_valor_matrix_libre_en_puto(ctx,puto) (opera_caca_obten_valor_matrix_rodeada_en_puto(ctx,puto)==OPERA_CACA_CARACTER_BLOQUE_LIBRE)
+#define opera_caca_obten_valor_matrix_rodeada_en_puto(ctx,puto) ((ctx)->matrix_rodeada[(puto)->coord_x][(puto)->coord_y])
+#define opera_caca_pon_valor_matrix_rodeada_en_puto(ctx,puto,valor) (ctx)->matrix_rodeada[(puto)->coord_x][(puto)->coord_y]=(valor)
+#define opera_caca_valor_matrix_libre_en_puto(ctx,puto) (opera_caca_obten_valor_matrix_rodeada_en_puto(ctx,puto)!=OPERA_CACA_CARACTER_BLOQUE_BLOKEADO)
 
 static inline bool opera_caca_mover(opera_caca_ctx *ctx,
 		opera_caca_idx_movs idx_mov) {
 	puto_cardinal *sig_puto = puto_cardinal_mem_local;
-	sig_puto = puto_cardinal_suma(sig_puto, ctx->pos_act,
-			opera_caca_movs[idx_mov]);
+	sig_puto = puto_cardinal_suma(sig_puto, &ctx->pos_act,
+			opera_caca_movs + idx_mov);
 
 	if (opera_caca_valor_matrix_libre_en_puto(ctx, sig_puto)) {
 		ctx->pos_act = *sig_puto;
 		ctx->movs_cnt++;
+		opera_caca_pon_valor_matrix_rodeada_en_puto(ctx, sig_puto, '*');
+		caca_log_debug("movido a %s",
+				puto_cardinal_a_cadena_buffer_local(sig_puto));
+		caca_log_debug("aora la mierda es\n%s",
+				caca_comun_matrix_a_cadena_byteme((byteme *)ctx->matrix_rodeada, ctx->filas_tam+2, ctx->columnas_tam+2, OPERA_CACA_MAX_COLUMNAS_RODEADAS, CACA_COMUN_BUF_STATICO));
 		return verdadero;
 	} else {
 		return falso;
@@ -484,8 +516,8 @@ typedef enum opera_caca_idx_brinco {
 	ninguno_opera_caca_idx_brinco
 } opera_caca_idx_brinco;
 
-#define opera_caca_pos_actual_fila_abajo(ctx) (ctx->pos_act->coord_x&1)
-#define opera_caca_pos_actual_fila_arriba(ctx) (!opera_caca_pos_actual_fila_abajo(ctx))
+#define opera_caca_pos_actual_fila_arriba(ctx) (ctx->pos_act.coord_x&1)
+#define opera_caca_pos_actual_fila_abajo(ctx) (!opera_caca_pos_actual_fila_arriba(ctx))
 
 static inline opera_caca_idx_brinco opera_caca_brinca_vertical(
 		opera_caca_ctx *ctx, bool brinco_completo) {
@@ -505,7 +537,7 @@ static inline opera_caca_idx_brinco opera_caca_brinca_vertical(
 		res_mov = opera_caca_mover(ctx, lateral);
 
 		if (!res_mov) {
-			assert_timeout(ctx->pos_act->coord_y==ctx->pos_tope);
+			assert_timeout(ctx->pos_act.coord_y==ctx->pos_tope);
 			return imposible_opera_caca_idx_brinco;
 		}
 
@@ -514,7 +546,7 @@ static inline opera_caca_idx_brinco opera_caca_brinca_vertical(
 
 	res_mov = opera_caca_mover(ctx, lateral);
 	if (!res_mov) {
-		assert_timeout(ctx->pos_act->coord_y==ctx->pos_tope);
+		assert_timeout(ctx->pos_act.coord_y==ctx->pos_tope);
 		if (opera_caca_pos_actual_fila_abajo(ctx)) {
 			return imposible_opera_caca_idx_brinco;
 		} else {
@@ -549,11 +581,12 @@ static inline void opera_caca_brinca_horizontal(opera_caca_ctx *ctx) {
 	assert_timeout(res_mov);
 }
 
-#define opera_caca_obten_mov_act(ctx) (opera_caca_seq_movs[ctx->movs_naturales_cnt%OPERA_CACA_MAX_MOVS])
-#define opera_caca_pos_actual_en_ultimas_filas(ctx) (ctx->pos_act->coord_x==filas_tam || ctx->pos_act->coord_x==filas_tam-1)
+#define opera_caca_obten_mov_act(ctx) (opera_caca_seq_movs[ctx->movs_naturales_cnt%OPERA_CACA_NUM_MOVS_NATURALES])
+#define opera_caca_pos_actual_en_ultimas_filas(ctx) (ctx->pos_act.coord_x==ctx->filas_tam || ctx->pos_act.coord_x==ctx->filas_tam-1)
 
 static inline void opera_caca_core(opera_caca_ctx *ctx) {
-	puto_cardinal *pos_act = &(puto_cardinal ) { .coord_x = 1, .coord_y = 1 };
+	ctx->pos_act = (puto_cardinal ) { .coord_x = 1, .coord_y = 1 };
+
 	while (1) {
 		bool mov_res = falso;
 		bool brincar_completo = falso;
@@ -617,8 +650,54 @@ static inline void opera_caca_core(opera_caca_ctx *ctx) {
 	}
 }
 
+static inline void opera_caca_main() {
+	natural num_cacasos = 0;
+	scanf("%u", &num_cacasos);
+	caca_log_debug("cacasos %u", num_cacasos);
+	while (num_cacasos--) {
+		opera_caca_ctx *ctx = NULL;
+		natural lado_tam = 0;
+
+		scanf("%u", &lado_tam);
+		caca_log_debug("laod tam %u", lado_tam);
+
+		ctx = calloc(1, sizeof(opera_caca_ctx));
+		assert_timeout(ctx);
+
+		ctx->columnas_tam = ctx->filas_tam = lado_tam;
+
+		memset(ctx->matrix, OPERA_CACA_CARACTER_BLOQUE_BLOKEADO,
+				sizeof(ctx->matrix));
+		memset(ctx->matrix_rodeada, OPERA_CACA_CARACTER_BLOQUE_BLOKEADO,
+				sizeof(ctx->matrix_rodeada));
+
+		ctx->sentido = der_opera_caca_idx_movs;
+		ctx->pos_tope = lado_tam;
+
+		for (int i = 0; i < lado_tam; i++) {
+			for (int j = 0; j < lado_tam; j++) {
+				byteme car_act = '\0';
+				scanf("%c", &car_act);
+				while (car_act != OPERA_CACA_CARACTER_BLOQUE_BLOKEADO
+						&& car_act != OPERA_CACA_CARACTER_BLOQUE_LIBRE) {
+					scanf("%c", &car_act);
+//					caca_log_debug("pero q mierda %c", car_act);
+				}
+				ctx->matrix[i][j] = car_act;
+				ctx->matrix_rodeada[i + 1][j + 1] = ctx->matrix[i][j];
+//				caca_log_debug("char leido %c", ctx->matrix_rodeada[i][j]);
+			}
+		}
+
+		caca_log_debug("matrix rodeada\n%s",
+				caca_comun_matrix_a_cadena_byteme((byteme *)ctx->matrix_rodeada, ctx->filas_tam+2, ctx->columnas_tam+2, OPERA_CACA_MAX_COLUMNAS_RODEADAS,CACA_COMUN_BUF_STATICO));
+
+		opera_caca_core(ctx);
+		free(ctx);
+	}
+}
+
 int main(void) {
-	puts("he corrido con algo de suerte"); /* prints he corrido con algo de suerte */
-	opera_caca_mov_arriba;
+	opera_caca_main();
 	return EXIT_SUCCESS;
 }
