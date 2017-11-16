@@ -492,10 +492,11 @@ static inline bool opera_caca_mover(opera_caca_ctx *ctx,
 	sig_puto = puto_cardinal_suma(sig_puto, &ctx->pos_act,
 			opera_caca_movs + idx_mov);
 
+	opera_caca_pon_valor_matrix_rodeada_en_puto(ctx, &ctx->pos_act, '*');
 	if (opera_caca_valor_matrix_libre_en_puto(ctx, sig_puto)) {
 		ctx->pos_act = *sig_puto;
 		ctx->movs_cnt++;
-		opera_caca_pon_valor_matrix_rodeada_en_puto(ctx, sig_puto, '*');
+		opera_caca_pon_valor_matrix_rodeada_en_puto(ctx, sig_puto, '+');
 		caca_log_debug("movido a %s",
 				puto_cardinal_a_cadena_buffer_local(sig_puto));
 		caca_log_debug("aora la mierda es\n%s",
@@ -584,6 +585,22 @@ static inline void opera_caca_brinca_horizontal(opera_caca_ctx *ctx) {
 #define opera_caca_obten_mov_act(ctx) (opera_caca_seq_movs[ctx->movs_naturales_cnt%OPERA_CACA_NUM_MOVS_NATURALES])
 #define opera_caca_pos_actual_en_ultimas_filas(ctx) (ctx->pos_act.coord_x==ctx->filas_tam || ctx->pos_act.coord_x==ctx->filas_tam-1)
 
+static inline bool opera_caca_rompe_secuencia_vertical(opera_caca_ctx *ctx) {
+	bool mov_res = falso;
+	opera_caca_idx_movs lateral = ctx->sentido;
+	opera_caca_idx_movs lateral_contrario =
+			ctx->sentido == izq_opera_caca_idx_movs ?
+					der_opera_caca_idx_movs : izq_opera_caca_idx_movs;
+
+	mov_res = opera_caca_mover(ctx, lateral_contrario);
+	if (!mov_res) {
+		return mov_res;
+	}
+	mov_res = opera_caca_mover(ctx, lateral);
+	assert_timeout(mov_res);
+	return mov_res;
+}
+
 static inline void opera_caca_core(opera_caca_ctx *ctx) {
 	ctx->pos_act = (puto_cardinal ) { .coord_x = 1, .coord_y = 1 };
 
@@ -615,6 +632,7 @@ static inline void opera_caca_core(opera_caca_ctx *ctx) {
 						break;
 					case imposible_opera_caca_idx_brinco:
 						if (opera_caca_pos_actual_fila_abajo(ctx)) {
+							opera_caca_rompe_secuencia_vertical(ctx);
 							mov_res = opera_caca_mover(ctx,
 									abajo_opera_caca_idx_movs);
 						} else {
@@ -622,6 +640,7 @@ static inline void opera_caca_core(opera_caca_ctx *ctx) {
 									abajo_opera_caca_idx_movs);
 							assert_timeout(mov_res);
 
+							opera_caca_rompe_secuencia_vertical(ctx);
 							mov_res = opera_caca_mover(ctx,
 									abajo_opera_caca_idx_movs);
 						}
@@ -629,6 +648,7 @@ static inline void opera_caca_core(opera_caca_ctx *ctx) {
 							opera_caca_brinca_horizontal(ctx);
 							ctx->movs_naturales_cnt = 1;
 						} else {
+							opera_caca_rompe_secuencia_vertical(ctx);
 							ctx->movs_naturales_cnt = 0;
 						}
 
@@ -689,6 +709,8 @@ static inline void opera_caca_main() {
 			}
 		}
 
+		opera_caca_pon_valor_matrix_rodeada_en_puto(ctx,
+				(&(puto_cardinal ) {.coord_x = 1, .coord_y = 1}), '+');
 		caca_log_debug("matrix rodeada\n%s",
 				caca_comun_matrix_a_cadena_byteme((byteme *)ctx->matrix_rodeada, ctx->filas_tam+2, ctx->columnas_tam+2, OPERA_CACA_MAX_COLUMNAS_RODEADAS,CACA_COMUN_BUF_STATICO));
 
