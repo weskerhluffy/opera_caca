@@ -519,6 +519,12 @@ typedef enum opera_caca_idx_brinco {
 	ninguno_opera_caca_idx_brinco
 } opera_caca_idx_brinco;
 
+#define opera_caca_obten_mov_act(ctx) (opera_caca_seq_movs[ctx->movs_naturales_cnt%OPERA_CACA_NUM_MOVS_NATURALES])
+#define opera_caca_pos_actual_en_ultimas_filas(ctx) (ctx->pos_act.coord_x==ctx->filas_tam || ctx->pos_act.coord_x==ctx->filas_tam-1)
+#define opera_caca_pos_actual_en_ultima_fila(ctx) (ctx->pos_act.coord_x==ctx->filas_tam)
+#define opera_caca_pos_actual_en_ultima_fila_impar(ctx) (opera_caca_pos_actual_en_ultima_fila(ctx) && ctx->filas_impares)
+#define opera_caca_pos_actual_en_penultima_fila(ctx) (ctx->pos_act.coord_x==ctx->filas_tam-1)
+
 static inline bool opera_caca_pos_actual_fila_arriba(opera_caca_ctx *ctx) {
 	bool esta_arriba = falso;
 	bool modo_impar = ctx->modo_impar;
@@ -563,7 +569,11 @@ static inline opera_caca_idx_brinco opera_caca_brinca_vertical(
 		if (opera_caca_pos_actual_fila_abajo(ctx)) {
 			return imposible_opera_caca_idx_brinco;
 		} else {
-			return lateral_opera_caca_idx_brinco;
+			if (opera_caca_pos_actual_en_penultima_fila(ctx)) {
+				return imposible_opera_caca_idx_brinco;
+			} else {
+				return lateral_opera_caca_idx_brinco;
+			}
 		}
 	}
 	assert_timeout(res_mov);
@@ -589,8 +599,7 @@ static inline bool opera_caca_brinca_horizontal(opera_caca_ctx *ctx) {
 
 	res_mov = opera_caca_mover(ctx, abajo_opera_caca_idx_movs);
 	if (!res_mov) {
-		assert_timeout(
-				ctx->pos_act.coord_x==ctx->filas_tam && ctx->filas_impares);
+		assert_timeout(opera_caca_pos_actual_en_ultima_fila_impar(ctx));
 		return verdadero;
 	}
 	assert_timeout(res_mov);
@@ -600,9 +609,6 @@ static inline bool opera_caca_brinca_horizontal(opera_caca_ctx *ctx) {
 
 	return falso;
 }
-
-#define opera_caca_obten_mov_act(ctx) (opera_caca_seq_movs[ctx->movs_naturales_cnt%OPERA_CACA_NUM_MOVS_NATURALES])
-#define opera_caca_pos_actual_en_ultimas_filas(ctx) (ctx->pos_act.coord_x==ctx->filas_tam || ctx->pos_act.coord_x==ctx->filas_tam-1)
 
 static inline bool opera_caca_rompe_secuencia_vertical(opera_caca_ctx *ctx) {
 	bool mov_res = falso;
@@ -641,7 +647,10 @@ static inline void opera_caca_core(opera_caca_ctx *ctx) {
 			tipo_brinco = opera_caca_brinca_vertical(ctx, brincar_completo);
 
 			if (tipo_brinco != ninguno_opera_caca_idx_brinco) {
-				if (opera_caca_pos_actual_en_ultimas_filas(ctx)) {
+				if (opera_caca_pos_actual_en_ultimas_filas(
+						ctx) && (!ctx->filas_impares || ctx->modo_impar)) {
+					assert_timeout(
+							tipo_brinco == imposible_opera_caca_idx_brinco);
 					break;
 				} else {
 					switch (tipo_brinco) {
@@ -649,7 +658,8 @@ static inline void opera_caca_core(opera_caca_ctx *ctx) {
 						opera_caca_brinca_horizontal(ctx);
 						ctx->movs_naturales_cnt = 0;
 						break;
-					case imposible_opera_caca_idx_brinco:
+					case imposible_opera_caca_idx_brinco: {
+						bool ultima_fila_impar = falso;
 						if (opera_caca_pos_actual_fila_abajo(ctx)) {
 							opera_caca_rompe_secuencia_vertical(ctx);
 							mov_res = opera_caca_mover(ctx,
@@ -664,19 +674,24 @@ static inline void opera_caca_core(opera_caca_ctx *ctx) {
 									abajo_opera_caca_idx_movs);
 						}
 						if (!mov_res) {
-							bool ultima_fila_impar =
-									opera_caca_brinca_horizontal(ctx);
-							if (ultima_fila_impar) {
-								ctx->modo_impar = verdadero;
-							}
 							ctx->movs_naturales_cnt = 1;
+							ultima_fila_impar = opera_caca_brinca_horizontal(
+									ctx);
 						} else {
 							opera_caca_rompe_secuencia_vertical(ctx);
 							ctx->movs_naturales_cnt = 0;
+							ultima_fila_impar =
+									opera_caca_pos_actual_en_ultima_fila_impar(
+											ctx);
+						}
+						if (ultima_fila_impar) {
+							ctx->modo_impar = verdadero;
+							ctx->movs_naturales_cnt = 1;
 						}
 
 						opera_caca_cambia_sentido_seq_movs(ctx);
 						break;
+					}
 					default:
 						abort();
 						break;
