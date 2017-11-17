@@ -464,6 +464,8 @@ typedef struct opera_caca_ctx {
 	natural filas_tam;
 	natural columnas_tam;
 	natural movs_naturales_cnt;
+	bool filas_impares;
+	bool modo_impar;
 } opera_caca_ctx;
 
 static inline void opera_caca_cambia_sentido_seq_movs(opera_caca_ctx *ctx) {
@@ -517,7 +519,17 @@ typedef enum opera_caca_idx_brinco {
 	ninguno_opera_caca_idx_brinco
 } opera_caca_idx_brinco;
 
-#define opera_caca_pos_actual_fila_arriba(ctx) (ctx->pos_act.coord_x&1)
+static inline bool opera_caca_pos_actual_fila_arriba(opera_caca_ctx *ctx) {
+	bool esta_arriba = falso;
+	bool modo_impar = ctx->modo_impar;
+
+	esta_arriba = ctx->pos_act.coord_x & 1;
+	if (modo_impar) {
+		esta_arriba = !esta_arriba;
+	}
+
+	return esta_arriba;
+}
 #define opera_caca_pos_actual_fila_abajo(ctx) (!opera_caca_pos_actual_fila_arriba(ctx))
 
 static inline opera_caca_idx_brinco opera_caca_brinca_vertical(
@@ -562,7 +574,7 @@ static inline opera_caca_idx_brinco opera_caca_brinca_vertical(
 	return ninguno_opera_caca_idx_brinco;
 }
 
-static inline void opera_caca_brinca_horizontal(opera_caca_ctx *ctx) {
+static inline bool opera_caca_brinca_horizontal(opera_caca_ctx *ctx) {
 	bool res_mov = falso;
 	opera_caca_idx_movs lateral = ctx->sentido;
 	opera_caca_idx_movs lateral_contrario =
@@ -576,10 +588,17 @@ static inline void opera_caca_brinca_horizontal(opera_caca_ctx *ctx) {
 	assert_timeout(res_mov);
 
 	res_mov = opera_caca_mover(ctx, abajo_opera_caca_idx_movs);
+	if (!res_mov) {
+		assert_timeout(
+				ctx->pos_act.coord_x==ctx->filas_tam && ctx->filas_impares);
+		return verdadero;
+	}
 	assert_timeout(res_mov);
 
 	res_mov = opera_caca_mover(ctx, lateral);
 	assert_timeout(res_mov);
+
+	return falso;
 }
 
 #define opera_caca_obten_mov_act(ctx) (opera_caca_seq_movs[ctx->movs_naturales_cnt%OPERA_CACA_NUM_MOVS_NATURALES])
@@ -645,7 +664,11 @@ static inline void opera_caca_core(opera_caca_ctx *ctx) {
 									abajo_opera_caca_idx_movs);
 						}
 						if (!mov_res) {
-							opera_caca_brinca_horizontal(ctx);
+							bool ultima_fila_impar =
+									opera_caca_brinca_horizontal(ctx);
+							if (ultima_fila_impar) {
+								ctx->modo_impar = verdadero;
+							}
 							ctx->movs_naturales_cnt = 1;
 						} else {
 							opera_caca_rompe_secuencia_vertical(ctx);
@@ -685,6 +708,7 @@ static inline void opera_caca_main() {
 		assert_timeout(ctx);
 
 		ctx->columnas_tam = ctx->filas_tam = lado_tam;
+		ctx->filas_impares = ctx->filas_tam & 1;
 
 		memset(ctx->matrix, OPERA_CACA_CARACTER_BLOQUE_BLOKEADO,
 				sizeof(ctx->matrix));
