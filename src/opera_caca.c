@@ -259,6 +259,7 @@ char *caca_comun_matrix_a_cadena_byteme(byteme *matrix, natural filas_tam,
 		natural columas_tam, natural max_cols,char *buffer) {
 	int i, j;
 	natural inicio_buffer_act = 0;
+#ifdef CACA_COMUN_LOG_GRANDE
 	for (int i = 0; i < filas_tam; i++) {
 		caca_comun_arreglo_a_cadena_byteme(matrix + i * max_cols, columas_tam,
 				buffer + inicio_buffer_act);
@@ -266,6 +267,7 @@ char *caca_comun_matrix_a_cadena_byteme(byteme *matrix, natural filas_tam,
 		buffer[inicio_buffer_act++] = '\n';
 		/*		caca_log_debug("pero q mierda inicio buffer act %u %s",inicio_buffer_act,buffer);*/
 	}
+#endif
 	return buffer;
 }
 #else
@@ -515,10 +517,12 @@ static inline bool opera_caca_mover(opera_caca_ctx *ctx,
 		assert_timeout(ctx->movs_cnt<=OPERA_CACA_MAX_MOVS);
 
 		opera_caca_pon_valor_matrix_rodeada_en_puto(ctx, sig_puto, '+');
+		/*
 		caca_log_debug("movido a %s",
 				puto_cardinal_a_cadena_buffer_local(sig_puto));
 		caca_log_debug("aora la mierda es\n%s",
 				caca_comun_matrix_a_cadena_byteme((byteme *)ctx->matrix_rodeada, ctx->filas_tam+2, ctx->columnas_tam+2, OPERA_CACA_MAX_COLUMNAS_RODEADAS, CACA_COMUN_BUF_STATICO));
+				*/
 		return verdadero;
 	} else {
 		return falso;
@@ -755,24 +759,26 @@ static inline void opera_caca_main() {
 				scanf("%c", &car_act);
 				while (car_act != OPERA_CACA_CARACTER_BLOQUE_BLOKEADO
 						&& car_act != OPERA_CACA_CARACTER_BLOQUE_LIBRE) {
+					car_act = '\0';
 					scanf("%c", &car_act);
-//					caca_log_debug("pero q mierda %c", car_act);
+//					caca_log_debug("pero q mierda %c %u", car_act, car_act);
 				}
 				ctx->matrix[i][j] = car_act;
 				ctx->matrix_rodeada[i + 1][j + 1] = ctx->matrix[i][j];
-//				caca_log_debug("char leido %c", ctx->matrix_rodeada[i][j]);
+//				caca_log_debug("char leido %c %c %u", ctx->matrix[i][j], car_act, car_act);
 			}
 		}
 
 		opera_caca_pon_valor_matrix_rodeada_en_puto(ctx,
 				(&(puto_cardinal ) {.coord_x = 1, .coord_y = 1}), '+');
-		caca_log_debug("matrix rodeada\n%s",
-				caca_comun_matrix_a_cadena_byteme((byteme *)ctx->matrix_rodeada, ctx->filas_tam+2, ctx->columnas_tam+2, OPERA_CACA_MAX_COLUMNAS_RODEADAS,CACA_COMUN_BUF_STATICO));
+
+		 caca_log_debug("matrix rodeada\n%s",
+		 caca_comun_matrix_a_cadena_byteme((byteme *)ctx->matrix_rodeada, ctx->filas_tam+2, ctx->columnas_tam+2, OPERA_CACA_MAX_COLUMNAS_RODEADAS,CACA_COMUN_BUF_STATICO));
 
 		opera_caca_core(ctx);
 
 		for (int i = 0; i < ctx->movs_cnt; i++) {
-			printf("%c", ctx->mov_hist[i]);
+//			printf("%c", ctx->mov_hist[i]);
 		}
 		printf("\n");
 
