@@ -517,12 +517,9 @@ static inline bool opera_caca_mover(opera_caca_ctx *ctx,
 		assert_timeout(ctx->movs_cnt<=OPERA_CACA_MAX_MOVS);
 
 		opera_caca_pon_valor_matrix_rodeada_en_puto(ctx, sig_puto, '+');
-		/*
 		caca_log_debug("movido a %s",
 				puto_cardinal_a_cadena_buffer_local(sig_puto));
-		caca_log_debug("aora la mierda es\n%s",
-				caca_comun_matrix_a_cadena_byteme((byteme *)ctx->matrix_rodeada, ctx->filas_tam+2, ctx->columnas_tam+2, OPERA_CACA_MAX_COLUMNAS_RODEADAS, CACA_COMUN_BUF_STATICO));
-				*/
+//		caca_log_debug("aora la mierda es\n%s", caca_comun_matrix_a_cadena_byteme((byteme *)ctx->matrix_rodeada, ctx->filas_tam+2, ctx->columnas_tam+2, OPERA_CACA_MAX_COLUMNAS_RODEADAS, CACA_COMUN_BUF_STATICO));
 		return verdadero;
 	} else {
 		return falso;
